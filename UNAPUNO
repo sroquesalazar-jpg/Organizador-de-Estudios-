@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Organizador de Estudios - Innovador</title>
+  <style>
+    :root{
+      --bg:#0f1724; --card:#0b1220; --accent:#6ee7b7; --muted:#9aa6b2; --glass: rgba(255,255,255,0.04);
+      --glass-2: rgba(255,255,255,0.02);
+      --glass-border: rgba(255,255,255,0.06);
+      --glass-glow: 0 6px 24px rgba(0,0,0,0.6);
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, 'Helvetica Neue', Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071021 0%, #081226 60%);color:#e6eef6}
+    .app{max-width:1100px;margin:28px auto;padding:24px;}
+    header{display:flex;gap:16px;align-items:center;justify-content:space-between}
+    h1{font-size:20px;margin:0}
+    .sub{color:var(--muted);font-size:13px}
+    .grid{display:grid;grid-template-columns:320px 1fr;gap:18px;margin-top:18px}
+
+    /* Sidebar */
+    .card{background:linear-gradient(180deg,var(--card),#071421);border:1px solid var(--glass-border);padding:14px;border-radius:12px;box-shadow:var(--glass-glow)}
+    .sidebar .courses{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+    .course{display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+    .course:hover{background:var(--glass);border-color:var(--glass-border)}
+    .course.active{background:linear-gradient(90deg,#06323a, #062d3a);box-shadow:0 6px 18px rgba(0,0,0,0.6)}
+    .course .dot{width:12px;height:12px;border-radius:50%;background:linear-gradient(180deg,var(--accent),#4fd1c5)}
+    .small{font-size:13px;color:var(--muted)}
+
+    /* Main area */
+    .top-actions{display:flex;gap:10px;align-items:center}
+    .btn{background:transparent;border:1px solid var(--glass-border);padding:8px 12px;border-radius:10px;cursor:pointer}
+    .btn.primary{background:linear-gradient(90deg,var(--accent),#3ee5b4);color:#062022;border:none}
+
+    .dashboard{display:grid;grid-template-columns:1fr 360px;gap:14px}
+    .panel{padding:12px;border-radius:10px}
+
+    /* Tasks */
+    .tasks{display:flex;flex-direction:column;gap:8px}
+    .task{display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;background:var(--glass-2);border:1px dashed rgba(255,255,255,0.02)}
+    .task .title{flex:1}
+    .progress{height:8px;background:rgba(255,255,255,0.05);border-radius:8px;overflow:hidden}
+    .progress > div{height:100%;background:linear-gradient(90deg,var(--accent),#2fd1b2);}
+
+    /* Pomodoro */
+    .pomodoro{display:flex;flex-direction:column;align-items:center;gap:8px}
+    .timer{font-size:28px;font-weight:700}
+
+    /* Responsive */
+    @media (max-width:900px){
+      .grid{grid-template-columns:1fr;}
+      .dashboard{grid-template-columns:1fr}
+    }
+
+    /* Tiny helpers */
+    input,textarea,select{background:transparent;border:1px solid var(--glass-border);padding:8px;border-radius:8px;color:inherit}
+    .row{display:flex;gap:8px;align-items:center}
+    .muted{color:var(--muted)}
+    a.smalllink{font-size:13px;color:var(--muted);text-decoration:underline;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>Organizador de Estudios — Innovador</h1>
+        <div class="sub">Cursos añadidos: Gestión Tributaria, Metodologías Ágiles, Sistemas Administrativos II, Negocios Internacionales, Gerencia de Proyectos, Banca y Seguro, Coaching y Mentoring</div>
+      </div>
+      <div class="top-actions">
+        <button class="btn" id="exportBtn">Exportar JSON</button>
+        <button class="btn" id="importBtn">Importar JSON</button>
+        <button class="btn primary" id="newTaskBtn">Nueva tarea rápida</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <aside class="card sidebar">
+        <div class="row"><strong>Mis cursos</strong><span class="small muted">(haz clic para seleccionar)</span></div>
+        <div class="courses" id="coursesList">
+          <!-- Cursos se generan por JS -->
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--glass-border);margin:12px 0">
+        <div>
+          <strong>Buscar tareas</strong>
+          <input id="search" placeholder="buscar por título o nota" oninput="renderTasks()">
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--glass-border);margin:12px 0">
+        <div class="small muted">Atajos:</div>
+        <div class="small">• Presiona <code>N</code> para nueva tarea • Presiona <code>P</code> para iniciar Pomodoro</div>
+      </aside>
+
+      <main>
+        <div class="dashboard">
+          <div class="card panel">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <strong id="selectedCourseTitle">Selecciona un curso</strong>
+                <div class="small muted" id="selectedCourseSub">Detalles y organización</div>
+              </div>
+              <div class="small muted" id="dateNow"></div>
+            </div>
+
+            <section style="margin-top:12px">
+              <div style="display:flex;justify-content:space-between;gap:12px;align-items:center">
+                <div>
+                  <strong>Tareas</strong>
+                  <div class="small muted">Arrastra para reordenar • Doble clic para editar</div>
+                </div>
+                <div class="row">
+                  <select id="filterState"><option value="all">Todas</option><option value="pending">Pendientes</option><option value="done">Completadas</option></select>
+                </div>
+              </div>
+
+              <div id="tasksContainer" class="tasks" style="margin-top:12px;min-height:120px">
+                <!-- tareas -->
+              </div>
+
+              <div style="margin-top:12px;display:flex;gap:8px">
+                <input id="taskTitle" placeholder="Título de la tarea" style="flex:1">
+                <button class="btn primary" id="addTaskBtn">Agregar</button>
+              </div>
+
+            </section>
+
+            <section style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap">
+              <div style="flex:1;min-width:180px" class="card">
+                <strong>Progreso del curso</strong>
+                <div class="small muted">Suma automática según tareas completadas</div>
+                <div style="margin-top:8px" class="progress"><div id="courseProgress" style="width:20%"></div></div>
+                <div class="small muted" id="progressText">0 / 0 tareas</div>
+              </div>
+
+              <div style="width:220px" class="card">
+                <strong>Pomodoro</strong>
+                <div class="pomodoro">
+                  <div class="timer" id="timer">25:00</div>
+                  <div class="row">
+                    <button class="btn" id="startPom">Iniciar</button>
+                    <button class="btn" id="pausePom">Pausa</button>
+                    <button class="btn" id="resetPom">Reset</button>
+                  </div>
+                  <div class="small muted">Sesiones completadas: <span id="pomCount">0</span></div>
+                </div>
+              </div>
+
+            </section>
+
+          </div>
+
+          <aside class="card panel">
+            <div>
+              <strong>Planificador semanal</strong>
+              <div class="small muted">Arrastra tareas aquí para asignarlas a un día</div>
+            </div>
+            <div id="weekPlanner" style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-top:10px">
+              <!-- días generados por JS -->
+            </div>
+
+            <hr style="border:none;border-top:1px solid var(--glass-border);margin:12px 0">
+
+            <div style="margin-top:8px">
+              <strong>Generador de sesiones</strong>
+              <div class="small muted">Crea sesiones rápidas según tiempo disponible</div>
+              <div class="row" style="margin-top:8px">
+                <input id="availableMins" type="number" min="10" placeholder="minutos" style="width:100%">
+                <button class="btn" id="genSession">Generar</button>
+              </div>
+              <div id="sessionList" style="margin-top:8px"></div>
+            </div>
+
+          </aside>
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <input type="file" id="fileInput" accept="application/json" style="display:none">
+
+  <script>
+    // Cursos por defecto (en español, nombres con tildes corregidos)
+    const defaultCourses = [
+      'Gestión Tributaria',
+      'Metodologías Ágiles',
+      'Sistemas Administrativos II',
+      'Negocios Internacionales',
+      'Gerencia de Proyectos',
+      'Banca y Seguro',
+      'Coaching y Mentoring'
+    ];
+
+    // Estado de la app (persistido en localStorage)
+    const STORAGE_KEY = 'organizador_estudios_v1';
+    let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || {
+      courses: {},
+      selected: defaultCourses[0],
+      pomodoro: {minutes:25, seconds:0, running:false, count:0}
+    };
+
+    // Inicializar cursos en el estado
+    defaultCourses.forEach(c=>{if(!state.courses[c]) state.courses[c]={tasks:[],planner:{}}});
+
+    // Helpers
+    const byId = id=>document.getElementById(id);
+    function save(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}
+
+    // Render cursos
+    function renderCourses(){
+      const list=byId('coursesList');list.innerHTML='';
+      defaultCourses.forEach(c=>{
+        const el=document.createElement('div');el.className='course'+(c===state.selected?' active':'');el.onclick=()=>{state.selected=c;save();renderAll()};
+        el.innerHTML=`<div class="dot"></div><div><strong>${c}</strong><div class="small muted">${state.courses[c].tasks.length} tareas</div></div>`;
+        list.appendChild(el);
+      });
+    }
+
+    // Render week planner
+    function renderWeekPlanner(){
+      const week = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+      const container = byId('weekPlanner');container.innerHTML='';
+      week.forEach((d,i)=>{
+        const col = document.createElement('div');col.className='card';col.style=minWidth='0';col.innerHTML=`<strong>${d}</strong><div class="small muted">Arrastra aquí</div><div class="dayArea" data-day="${i}" style="min-height:80px;margin-top:8px"></div>`;
+        container.appendChild(col);
+      });
+      // permitir drop
+      container.querySelectorAll('.dayArea').forEach(el=>{
+        el.ondragover = e=>e.preventDefault();
+        el.ondrop = e=>{
+          const taskId = e.dataTransfer.getData('text');
+          assignTaskToDay(taskId, el.dataset.day);
+        }
+      });
+    }
+
+    function assignTaskToDay(taskId, day){
+      const course = state.courses[state.selected];
+      const t = course.tasks.find(x=>x.id===taskId);
+      if(!t) return;
+      t.day = day; save(); renderAll();
+    }
+
+    // Render tareas
+    function renderTasks(){
+      const container=byId('tasksContainer');container.innerHTML='';
+      const course = state.courses[state.selected];
+      const filter = byId('filterState').value;
+      const q = byId('search').value.toLowerCase();
+      const tasks = course.tasks.filter(t=>{
+        if(filter==='pending' && t.done) return false;
+        if(filter==='done' && !t.done) return false;
+        if(q && !(t.title.toLowerCase().includes(q) || (t.note||'').toLowerCase().includes(q))) return false;
+        return true;
+      });
+      tasks.forEach(t=>{
+        const el=document.createElement('div');el.className='task';el.draggable=true;el.ondragstart=e=>e.dataTransfer.setData('text',t.id);
+        el.ondblclick=()=>editTask(t.id);
+        el.innerHTML=`<input type="checkbox" ${t.done? 'checked':''} onchange="toggleDone('${t.id}')"> <div class="title"><strong>${t.title}</strong><div class="small muted">${t.note||''}</div></div><div style="width:140px"><div class="small muted">Vence: ${t.due||'—'}</div><div class="progress" style="margin-top:6px"><div style="width:${t.progress||0}%"></div></div></div><div style="display:flex;gap:6px"><button class="btn" onclick="deleteTask('${t.id}')">Eliminar</button></div>`;
+        container.appendChild(el);
+      });
+      updateProgress();
+    }
+
+    function updateProgress(){
+      const course=state.courses[state.selected];
+      const total = course.tasks.length; const done = course.tasks.filter(t=>t.done).length;
+      const percent = total? Math.round((done/total)*100):0;
+      byId('courseProgress').style.width = percent+'%';
+      byId('progressText').innerText = `${done} / ${total} tareas — ${percent}%`;
+    }
+
+    // CRUD tareas
+    function addTask(title){
+      if(!title) return;
+      const id = 't_'+Math.random().toString(36).slice(2,9);
+      const task = {id, title, note:'', due:'', progress:0, done:false, created:Date.now(), day:null};
+      state.courses[state.selected].tasks.unshift(task); save(); renderAll();
+    }
+    function deleteTask(id){
+      const c = state.courses[state.selected]; c.tasks = c.tasks.filter(t=>t.id!==id); save(); renderAll();
+    }
+    function toggleDone(id){
+      const t = state.courses[state.selected].tasks.find(x=>x.id===id); if(!t) return; t.done=!t.done; if(t.done) t.progress=100; save(); renderAll();
+    }
+    function editTask(id){
+      const t = state.courses[state.selected].tasks.find(x=>x.id===id); if(!t) return;
+      const title = prompt('Editar título', t.title); if(title!==null) t.title = title;
+      const note = prompt('Nota (opcional)', t.note||''); if(note!==null) t.note = note;
+      const due = prompt('Fecha de entrega (YYYY-MM-DD)', t.due||''); if(due!==null) t.due = due;
+      const progress = prompt('Progreso (%)', t.progress||0); if(progress!==null) t.progress = Math.max(0,Math.min(100,Number(progress)||0)); save(); renderAll();
+    }
+
+    // Generador de sesiones
+    function generateSessions(minutes){
+      const out = byId('sessionList'); out.innerHTML = '';
+      if(!minutes || minutes<10) { out.innerHTML='<div class="small muted">Ingresa al menos 10 minutos</div>'; return; }
+      // Reglas simples: bloques de 25/50 con breaks de 5/10 según total
+      const sessions = [];
+      while(minutes >= 25){ sessions.push(25); minutes -= 30; } // 25 + 5 break
+      if(minutes >= 15) sessions.push(15);
+      sessions.forEach((m,i)=>{
+        const div = document.createElement('div'); div.className='small'; div.innerText = `Sesión ${i+1}: ${m} minutos`;
+        out.appendChild(div);
+      });
+    }
+
+    // Export / Import
+    function exportJSON(){
+      const blob = new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='organizador_estudios.json'; a.click(); URL.revokeObjectURL(url);
+    }
+    function importJSON(file){
+      const reader = new FileReader(); reader.onload = e=>{
+        try{ const obj = JSON.parse(e.target.result); state = obj; save(); renderAll(); alert('Importado correctamente'); }
+        catch(err){alert('Archivo inválido')}
+      }; reader.readAsText(file);
+    }
+
+    // Pomodoro (simple)
+    let pomInterval = null;
+    function renderPom(){
+      const p = state.pomodoro; byId('timer').innerText = `${String(p.minutes).padStart(2,'0')}:${String(p.seconds).padStart(2,'0')}`;
+      byId('pomCount').innerText = p.count;
+    }
+    function startPom(){ if(state.pomodoro.running) return; state.pomodoro.running=true; save(); pomInterval = setInterval(()=>{
+        if(state.pomodoro.seconds===0){ if(state.pomodoro.minutes===0){ // sesión completa
+            state.pomodoro.count++; state.pomodoro.running=false; state.pomodoro.minutes=25; state.pomodoro.seconds=0; clearInterval(pomInterval); save(); renderAll(); new Notification('Pomodoro','Sesión completada'); return; }
+            state.pomodoro.minutes--; state.pomodoro.seconds=59;
+        } else state.pomodoro.seconds--;
+        renderPom();
+      },1000);
+    }
+    function pausePom(){ state.pomodoro.running=false; save(); clearInterval(pomInterval); }
+    function resetPom(){ pausePom(); state.pomodoro.minutes=25; state.pomodoro.seconds=0; save(); renderAll(); }
+
+    // Utilidades UI
+    function renderAll(){ renderCourses(); renderTasks(); renderWeekPlanner(); renderPlannerAssignments(); renderPom(); byId('selectedCourseTitle').innerText = state.selected; byId('selectedCourseSub').innerText = `Tareas: ${state.courses[state.selected].tasks.length}`; byId('dateNow').innerText = new Date().toLocaleDateString(); }
+
+    function renderPlannerAssignments(){
+      document.querySelectorAll('.dayArea').forEach(el=>el.innerHTML='');
+      const tasks = state.courses[state.selected].tasks.filter(t=>t.day!==null);
+      tasks.forEach(t=>{
+        const el = document.createElement('div'); el.className='task'; el.draggable=true; el.ondragstart=e=>e.dataTransfer.setData('text',t.id);
+        el.innerHTML = `<strong>${t.title}</strong><div class="small muted">${t.due||''}</div>`;
+        const container = document.querySelector(`.dayArea[data-day='${t.day}']`);
+        if(container) container.appendChild(el);
+      });
+    }
+
+    // Key shortcuts
+    document.addEventListener('keydown',e=>{
+      if(e.key==='N' || e.key==='n'){ const t = prompt('Título de la tarea rápida'); if(t) addTask(t); }
+      if(e.key==='P' || e.key==='p'){ startPom(); }
+    });
+
+    // Listeners
+    byId('addTaskBtn').onclick = ()=>{ addTask(byId('taskTitle').value); byId('taskTitle').value=''; }
+    byId('newTaskBtn').onclick = ()=>{ const t = prompt('Título de la tarea rápida'); if(t) addTask(t); }
+    byId('filterState').onchange = renderTasks;
+    byId('genSession').onclick = ()=>generateSessions(Number(byId('availableMins').value));
+    byId('exportBtn').onclick = exportJSON;
+    byId('importBtn').onclick = ()=>byId('fileInput').click();
+    byId('fileInput').onchange = e=>importJSON(e.target.files[0]);
+
+    byId('startPom').onclick = startPom; byId('pausePom').onclick = pausePom; byId('resetPom').onclick = resetPom;
+
+    // Notifications permission
+    if('Notification' in window && Notification.permission !== 'granted'){
+      Notification.requestPermission();
+    }
+
+    // Initialize and render
+    renderAll();
+
+    // For first-time tips
+    if(!localStorage.getItem('organizador_tip_shown')){
+      localStorage.setItem('organizador_tip_shown','1');
+      setTimeout(()=>alert('Tip: usa la exportación para respaldar tus datos. Arrastra tareas al planificador semanal.'),600);
+    }
+
+  </script>
+</body>
+</html>
